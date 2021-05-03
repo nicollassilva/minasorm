@@ -1,0 +1,41 @@
+{
+    "name": "nicollassilva/minasorm",
+    "description": "\u0016A ORM project designed to assist daily routines and speed up the process of communicating with the database.",
+    "keywords": [
+        "MinasORM",
+        "CRUD",
+        "PHPCRUD",
+        "CRUDPHP",
+        "Database",
+        "Table",
+        "Create",
+        "Read",
+        "Update",
+        "Delete"
+    ],
+    "homepage": "https://www.nicollas.dev.br",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Nicollas",
+            "email": "lyod.hp@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": "^7.2.5",
+        "ext-pdo": "*",
+        "vlucas/phpdotenv": "5.3.x-dev",
+        "monolog/monolog": "2.x-dev",
+        "symfony/var-dumper": "^5.x-dev"
+    },
+    "autoload": {
+        "files": [
+            "src/Builder/Functions/Assistant.php"
+        ],
+    	"psr-4": {
+    		"MinasORM\\": "src/",
+            "App\\": "App/"
+    	}
+    }
+}
