@@ -39,6 +39,9 @@ class QueryBuilder extends Connect {
     /** @var null|int $limit */
     protected $limit;
 
+    /** @var null|int $offset */
+    protected $offset;
+
     /**
      * Make the first connection to the database. If the connection 
      * has already been made through some previous call, it just verify 
@@ -64,10 +67,32 @@ class QueryBuilder extends Connect {
 
     /**
      * Responsible for order the results of the consultation
+     * @param string $column
+     * @param string $order = 'asc'
+     * @return \MinasORM\Builder\QueryBuilder
      */
     public function orderBy(String $column, String $order = 'asc')
     {
+        if(! in_array($order, ['asc', 'desc'], true)) {
+            LogErrors::storeLog('Order direction must be "asc" or "desc".');
+        }
+
+        $order = Str::lower($order);
+
         $this->orders[] = [$column, $order];
+
+        return $this;
+    }
+
+    /**
+     * Add a descending "order by" clause to the query
+     *
+     * @param  string  $column
+     * @return $this
+     */
+    public function orderByDesc($column)
+    {
+        return $this->orderBy($column, 'desc');
     }
 
     /**
@@ -254,9 +279,23 @@ class QueryBuilder extends Connect {
      */
     protected function prepareOrdersForQuery()
     {
-        foreach($this->orders as $order) {
-            
+        $orderString = " ORDER BY ";
+
+        foreach($this->orders as $key => $order) {
+            if(isset($this->orders[$key + 1])) {
+                $nextOrder = $this->orders[$key + 1];
+            }
+
+            if(isset($nextOrder) && $nextOrder[1] === $order[1]) {
+                $orderString .= "{$order[0]}, ";
+            } else {
+                $orderString .= "{$order[0]} {$order[1]}, ";
+            }
+
+            $nextOrder = null;
         }
+
+        return Str::clearEnd(', ', $orderString);
     }
 
     /**
@@ -359,8 +398,12 @@ class QueryBuilder extends Connect {
 
         $limit = $this->limit > 0 ? 'LIMIT ' . $this->limit : '';
 
+        $orders = $this->prepareOrdersForQuery();
+
+        $offset = $this->offset > 0 ? 'OFFSET ' . $this->offset : '';
+
         if($type === 'where') {
-            return "SELECT {$columns} FROM {$this->table} {$this->whereString} {$limit}";
+            return "SELECT {$columns} FROM {$this->table} {$this->whereString} {$orders} {$limit} {$offset}";
         }
     }
 
@@ -421,6 +464,30 @@ class QueryBuilder extends Connect {
     }
 
     /**
+     * Skips the table records according to the (offset * limit);
+     * @param int $skip
+     * @return \MinasORM\Builder\QueryBuilder
+     */
+    public function offset(Int $offset)
+    {
+        if($offset >= 0) {
+            $this->offset = $offset;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Alias of the "offset" method;
+     * @param int $skip
+     * @return \MinasORM\Builder\QueryBuilder
+     */
+    public function skip(Int $skip)
+    {
+        return $this->offset($skip);
+    }
+
+    /**
      * Get the first requested record, but when it doesn't find the record, 
      * it kills the process (with 404 error).
      * @param null|string|array $columns
@@ -472,5 +539,11 @@ class QueryBuilder extends Connect {
         throw new Exception(
                 "Property [{$property}] does not exist on the builder instance."
             );
+    }
+
+    public function latest(?String $column = null)
+    {
+
+        return $this->orderBy($column ?? $this->primary, 'DESC');
     }
 }

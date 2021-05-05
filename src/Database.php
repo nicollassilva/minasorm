@@ -2,6 +2,7 @@
 
 namespace MinasORM;
 
+use Closure;
 use MinasORM\DatabaseChild;
 use MinasORM\Utils\Strings;
 use MinasORM\Utils\Properties;
@@ -14,11 +15,11 @@ use MinasORM\Builder\QueryBuilder;
 class Database {
     use Properties;
 
-    /** @var string $table */
-    protected static $tableName = '';
+    /** @var null|string $table */
+    protected static $tableName = null;
 
-    /** @var string $primary */
-    protected static $primaryKey = '';
+    /** @var null|string $primary */
+    protected static $primaryKey = null;
 
     /** @var object|null $builderInstance */
     protected static $builderInstance;
@@ -78,7 +79,7 @@ class Database {
 
         $builder = new QueryBuilder();
 
-        if(empty(self::$tableName) || empty(self::$primaryKey)) {
+        if(is_null(self::$tableName) || is_null(self::$primaryKey)) {
             self::setChildClass();
         }
 
@@ -129,10 +130,46 @@ class Database {
             ->setData($name, $primaryKey);
     }
 
+    /**
+     * Alias of the "find" static method combined with "first" method.
+     * @param mixed $id
+     * @param null|string $operator = null
+     * @param mixed $value = null
+     */
     public static function firstWhere($columns, $operator = null, $value = null)
     {
         return self::builder()->where(
                 $columns, $operator, $value
             )->first();
+    }
+
+    /**
+     * Alias of the "find" static method, but when it doesn't find the record, 
+     * the callback will be executed.
+     */
+    public static function findOr($id, $columns, $callback = null)
+    {
+        if($columns instanceof \Closure) {
+            $callback = $columns;
+
+            $columns = ['*'];
+        }
+
+        if($result = self::find($id, $columns)) {
+            return $result;
+        }
+
+        if($callback instanceof \Closure) {
+            return $callback(self::builder());
+        }
+
+        return null;
+    }
+
+    public static function latest(?String $column = null)
+    {
+
+        return self::builder()
+            ->orderBy($column ?? self::$primaryKey, 'DESC');
     }
 }

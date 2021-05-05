@@ -39,4 +39,15 @@ class Strings {
     {
         return mb_strtolower($string, 'UTF-8');
     }
+
+    /**
+     * Removes a character at the end of the text
+     * @param string $character
+     * @param string $string
+     * @return string
+     */
+    public static function clearEnd(String $character, String $string)
+    {
+        return rtrim($string, $character);
+    }
 }

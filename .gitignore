@@ -1,3 +1,5 @@
 tooling.php
 .env
 vendor/
+index.php
+App/
