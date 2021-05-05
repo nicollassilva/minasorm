@@ -22,7 +22,10 @@ class Database {
     protected static $primaryKey = null;
 
     /** @var object|null $builderInstance */
-    protected static $builderInstance;
+    protected static $builderInstance = null;
+
+    /** @var string|null $model */
+    protected static $model = null;
 
     /**
      * Searches for a record in the database based on the primary index
@@ -60,9 +63,9 @@ class Database {
      */
     public static function setChildClass()
     {
-        $childClass = new DatabaseChild(
-                get_called_class()
-            );
+        $model = self::$model = get_called_class();
+
+        $childClass = new DatabaseChild($model);
 
         self::$tableName = (new static)->getTable() ?? Strings::lower($childClass->getClassName(true));
         self::$primaryKey = (new static)->getPrimary() ?? 'id';
@@ -79,14 +82,21 @@ class Database {
 
         $builder = new QueryBuilder();
 
-        if(is_null(self::$tableName) || is_null(self::$primaryKey)) {
-            self::setChildClass();
-        }
+        self::setChildClass();
 
         $builder->setData(
             self::$tableName,
-            self::$primaryKey
+            self::$primaryKey,
+            self::$model
         );
+
+        $builder->setFillable(
+                (new static)->getModelFillables()
+            );
+
+        $builder->setAttributes(
+                (new static)->getModelAttributes()
+            );
 
         //self::$builderInstance = $builder;
 
@@ -127,7 +137,7 @@ class Database {
     public static function table(String $name, String $primaryKey = 'id')
     {
         return (new QueryBuilder)
-            ->setData($name, $primaryKey);
+            ->setData($name, $primaryKey, static::class);
     }
 
     /**

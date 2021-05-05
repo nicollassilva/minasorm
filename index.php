@@ -1,9 +1,14 @@
 <?php
 
+use App\Models\Categories;
 use App\Models\User;
+use MinasORM\Database;
 
 require('vendor/autoload.php');
 
-$user = User::latest()->limit(1)->offset(1)->get();
-
-dd($user);
+$user = Categories::create([
+    'name' => 'Testando',
+    'description' => 'Hi',
+    'url' => 'test-test-test',
+    'categorie_tertiary_id' => 2
+]);

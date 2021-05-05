@@ -33,6 +33,12 @@ class QueryBuilder extends Connect {
     /** @var array $columns */
     protected array $columns = ['*'];
 
+    /** @var null|array $fillables */
+    protected $fillables = null;
+
+    /** @var null|array $attributes */
+    protected $attributes = null;
+
     /** @var array $orders */
     private array $orders = [];
 
@@ -41,6 +47,9 @@ class QueryBuilder extends Connect {
 
     /** @var null|int $offset */
     protected $offset;
+
+    /** @var string|null $model */
+    protected $model = null;
 
     /**
      * Make the first connection to the database. If the connection 
@@ -73,11 +82,11 @@ class QueryBuilder extends Connect {
      */
     public function orderBy(String $column, String $order = 'asc')
     {
-        if(! in_array($order, ['asc', 'desc'], true)) {
-            LogErrors::storeLog('Order direction must be "asc" or "desc".');
-        }
-
         $order = Str::lower($order);
+
+        if(!in_array($order, ['asc', 'desc'], true)) {
+            return LogErrors::storeLog('Order direction must be "asc" or "desc".');
+        }
 
         $this->orders[] = [$column, $order];
 
@@ -194,7 +203,7 @@ class QueryBuilder extends Connect {
         ];
 
         return is_null($value) && in_array($operator, $operators) &&
-             ! in_array($operator, ['=', '<>', '!=']);
+               !in_array($operator, ['=', '<>', '!=']);
     }
 
     /**
@@ -204,7 +213,7 @@ class QueryBuilder extends Connect {
      */
     public function newQueryWithSetData()
     {
-        return (new QueryBuilder)->setData($this->table, $this->primary);
+        return (new QueryBuilder)->setData($this->table, $this->primary, $this->model);
     }
 
     /**
@@ -279,9 +288,13 @@ class QueryBuilder extends Connect {
      */
     protected function prepareOrdersForQuery()
     {
-        $orderString = " ORDER BY ";
+        $orderString = '';
 
         foreach($this->orders as $key => $order) {
+            if(empty($orderString)) {
+                $orderString .= " ORDER BY ";
+            }
+
             if(isset($this->orders[$key + 1])) {
                 $nextOrder = $this->orders[$key + 1];
             }
@@ -413,12 +426,23 @@ class QueryBuilder extends Connect {
      * @param string $primary
      * @return \MinasORM\Builder\QueryBuilder
      */
-    public function setData(String $table, String $primary)
+    public function setData(String $table, String $primary, String $model)
     {
         $this->table = $table;
         $this->primary = $primary;
+        $this->model = $model;
 
         return $this;
+    }
+
+    public function setFillable(Array $fillables)
+    {
+        $this->fillables = $fillables;
+    }
+
+    public function setAttributes(Array $attributes)
+    {
+        $this->attributes = $attributes;
     }
 
     /**
@@ -438,11 +462,11 @@ class QueryBuilder extends Connect {
         }
 
         if($execQuery->rowCount() > 1) {
-            return $returnInstance ? $execQuery->fetchAll(PDO::FETCH_CLASS, static::class)
+            return $returnInstance ? $execQuery->fetchAll(PDO::FETCH_CLASS, $this->model)
                    : $execQuery->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        return $returnInstance ? $execQuery->fetchObject(static::class)
+        return $returnInstance ? $execQuery->fetchObject($this->model)
                : $execQuery->fetch(PDO::FETCH_ASSOC);
     }
 
@@ -543,7 +567,6 @@ class QueryBuilder extends Connect {
 
     public function latest(?String $column = null)
     {
-
         return $this->orderBy($column ?? $this->primary, 'DESC');
     }
 }

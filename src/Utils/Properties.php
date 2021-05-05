@@ -34,10 +34,23 @@ trait Properties {
      * Get the fillable columns from the model table
      * @return array|null
      */
-    public function getFillables(): ?Array
+    public function getModelFillables(): ?Array
     {
         if(isset($this->fillables) && gettype($this->fillables) == 'array') {
             return $this->fillables;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Get the default attributes of the empty columns values
+     * @return array|null
+     */
+    public function getModelAttributes(): ?Array
+    {
+        if(isset($this->attributes) && gettype($this->attributes) == 'array') {
+            return $this->attributes;
         }
         
         return null;
