@@ -178,8 +178,13 @@ class Database {
 
     public static function latest(?String $column = null)
     {
-
         return self::builder()
             ->orderBy($column ?? self::$primaryKey, 'DESC');
+    }
+
+    public static function delete($value)
+    {
+        return self::builder()
+            ->destroy($value);
     }
 }

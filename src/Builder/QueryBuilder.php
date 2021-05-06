@@ -51,6 +51,9 @@ class QueryBuilder extends Connect {
     /** @var string|null $model */
     protected $model = null;
 
+    /** @var mixed $deleteData */
+    protected $deleteData = null;
+
     /**
      * Make the first connection to the database. If the connection 
      * has already been made through some previous call, it just verify 
@@ -340,14 +343,14 @@ class QueryBuilder extends Connect {
      * Execute PDO Query
      * @return object|bool|null 
      */
-    protected function executeQuery()
+    protected function executeQuery($type = 'where')
     {
         $this->prepareWhereForQuery();
 
         $query = Connect::getInstance()
-            ->prepare($this->getFormatedQuery());
+            ->prepare($this->getFormatedQuery($type));
         
-        $this->bindValues($query);
+        $this->bindValues($query, $type);
 
         try {
             $query->execute();
@@ -384,10 +387,18 @@ class QueryBuilder extends Connect {
      * @param object|null $preparedQuery
      * @return void
      */
-    protected function bindValues($preparedQuery)
+    protected function bindValues($preparedQuery, $type = 'where')
     {
-        foreach($this->wheres as $index => $where) {
-            $preparedQuery->bindParam($index + 1, $where[2], Helpers::getDataType($where[2]));
+        if($type === 'delete' && empty($this->deleteData)) {
+            return LogErrors::storeLog("The primary key value was not found to be deleted.");
+        }
+
+        if($type === 'where') {
+            foreach($this->wheres as $index => $where) {
+                $preparedQuery->bindParam($index + 1, $where[2], Helpers::getDataType($where[2]));
+            }
+        } elseif ($type === 'delete') {
+            $preparedQuery->bindParam(':primary', $this->deleteData);
         }
     }
 
@@ -407,16 +418,18 @@ class QueryBuilder extends Connect {
      */
     public function getFormatedQuery(String $type = 'where')
     {
-        $columns = implode(', ', $this->columns);
-
-        $limit = $this->limit > 0 ? 'LIMIT ' . $this->limit : '';
-
-        $orders = $this->prepareOrdersForQuery();
-
-        $offset = $this->offset > 0 ? 'OFFSET ' . $this->offset : '';
-
         if($type === 'where') {
+            $columns = implode(', ', $this->columns);
+    
+            $limit = $this->limit > 0 ? 'LIMIT ' . $this->limit : '';
+    
+            $orders = $this->prepareOrdersForQuery();
+    
+            $offset = $this->offset > 0 ? 'OFFSET ' . $this->offset : '';
+
             return "SELECT {$columns} FROM {$this->table} {$this->whereString} {$orders} {$limit} {$offset}";
+        } elseif($type === 'delete') {
+            return "DELETE FROM {$this->table} WHERE {$this->primary} = :primary";
         }
     }
 
@@ -435,13 +448,21 @@ class QueryBuilder extends Connect {
         return $this;
     }
 
-    public function setFillable(Array $fillables)
+    public function setFillable(?Array $fillables)
     {
+        if(!$fillables) {
+            return;
+        }
+
         $this->fillables = $fillables;
     }
 
-    public function setAttributes(Array $attributes)
+    public function setAttributes(?Array $attributes)
     {
+        if(!$attributes) {
+            return;
+        }
+
         $this->attributes = $attributes;
     }
 
@@ -451,9 +472,9 @@ class QueryBuilder extends Connect {
      * @param bool $returnCount
      * @return \PDO|void|array|boolean
      */
-    protected function queryResults($returnInstance = false, $returnCount = false)
+    protected function queryResults($returnInstance = false, $returnCount = false, $type = 'where')
     {
-        $execQuery = $this->executeQuery();
+        $execQuery = $this->executeQuery($type);
 
         if(!$execQuery) return;
 
@@ -568,5 +589,17 @@ class QueryBuilder extends Connect {
     public function latest(?String $column = null)
     {
         return $this->orderBy($column ?? $this->primary, 'DESC');
+    }
+
+    /**
+     * Destroy a record in the table
+     * @param mixed $primaryValue
+     * @return bool|null
+     */
+    public function destroy($primaryValue)
+    {
+        $this->deleteData = $primaryValue;
+
+        return !!$this->queryResults(false, true, 'delete');
     }
 }
