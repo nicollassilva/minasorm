@@ -6,6 +6,9 @@ use MinasORM\Database;
 
 require('vendor/autoload.php');
 
-$user = Categories::delete(3);
+$user = Categories::create([
+    'id' => 2,
+    'description' => 'osiaoi'
+]);
 
 dd($user);

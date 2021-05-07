@@ -51,8 +51,8 @@ class QueryBuilder extends Connect {
     /** @var string|null $model */
     protected $model = null;
 
-    /** @var mixed $deleteData */
-    protected $deleteData = null;
+    /** @var array|object|null $data */
+    protected $data = null;
 
     /**
      * Make the first connection to the database. If the connection 
@@ -66,7 +66,11 @@ class QueryBuilder extends Connect {
 
     /**
      * Search for a record in the database based on the table's primary index
-     * @param 
+     * 
+     * @param mixed $id
+     * @param string|array|null $columns = null
+     * 
+     * @return \MinasORM\Builder\QueryBuilder
      */
     public function find($id, $columns = null)
     {
@@ -79,8 +83,10 @@ class QueryBuilder extends Connect {
 
     /**
      * Responsible for order the results of the consultation
+     * 
      * @param string $column
      * @param string $order = 'asc'
+     * 
      * @return \MinasORM\Builder\QueryBuilder
      */
     public function orderBy(String $column, String $order = 'asc')
@@ -109,10 +115,13 @@ class QueryBuilder extends Connect {
 
     /**
      * Search for a record in the database based on the table's primary index
-     * @param \Closure|string $columns
+     * 
+     * @param \Closure|string|array $columns
      * @param mixed $operator = null
      * @param mixed $value = null
      * @param mixed $condition = null
+     * 
+     * @return \MinasORM\Builder\QueryBuilder
      */
     public function where($columns, $operator = null, $value = null, $condition = 'AND')
     {
@@ -139,9 +148,11 @@ class QueryBuilder extends Connect {
 
     /**
      * Add where clause when it is array incoming
+     * 
      * @param array $arrayWheres
      * @param string $continuousOperator
      * @param string $method = 'where'
+     * 
      * @return method whereCallback
      */
     public function addWhereAsArray(Array $arrayWheres, $continuousOperator, $method = 'where')
@@ -159,7 +170,9 @@ class QueryBuilder extends Connect {
 
     /**
      * Execute the closure function to add array of wheres
+     * 
      * @param closure $closure
+     * 
      * @return \MinasORM\Builder\QueryBuilder
      */
     public function whereCallback(Closure $closure)
@@ -171,9 +184,11 @@ class QueryBuilder extends Connect {
 
     /**
      * Prepare the value and operator for a where clause
+     * 
      * @param string $value
      * @param string $operator
-     * @param bool $useDefault
+     * @param bool $useDefault = false
+     * 
      * @return array
      */
     public function prepareValueAndOperator($value, $operator, $useDefault = false)
@@ -190,8 +205,10 @@ class QueryBuilder extends Connect {
     /**
      * Determine if the given operator and value combination is legal
      * Prevents using Null values with invalid operators
+     * 
      * @param string $operator
      * @param mixed $value
+     * 
      * @return bool
      */
     protected function invalidOperatorAndValue($operator, $value)
@@ -212,6 +229,7 @@ class QueryBuilder extends Connect {
     /**
      * Returns a new instance of QueryBuilder with
      * the same configuration data (table and primary)
+     * 
      * @return \MinasORM\Builder\QueryBuilder
      */
     public function newQueryWithSetData()
@@ -221,10 +239,13 @@ class QueryBuilder extends Connect {
 
     /**
      * Alias of the "where" clause, with continuous operator OR
-     * @param \Closure|string $columns
+     * 
+     * @param \Closure|string|array $columns
      * @param mixed $operator = null
      * @param mixed $value = null
      * @param mixed $condition = null
+     * 
+     * @return \MinasORM\Builder\QueryBuilder
      */
     public function orWhere($columns, $operator = null, $value = null)
     {
@@ -235,7 +256,10 @@ class QueryBuilder extends Connect {
 
     /**
      * Sets the columns to be retrieved from the database
+     * 
      * @param mixed $columns
+     * 
+     * @return void
      */
     public function only($columns)
     {
@@ -264,6 +288,13 @@ class QueryBuilder extends Connect {
 
     /**
      * Add a new where clause for query.
+     * 
+     * @param mixed $operator
+     * @param mixed $value
+     * @param mixed $condition
+     * @param string|null $continuousOperator = 'AND'
+     * 
+     * @return void
      */
     protected function addWhere($column, $operator, $value, $continuousOperator = 'AND')
     {
@@ -272,6 +303,7 @@ class QueryBuilder extends Connect {
 
     /**
      * Prepare the where array for the next database call
+     * 
      * @return void
      */
     protected function prepareWhereForQuery()
@@ -287,6 +319,7 @@ class QueryBuilder extends Connect {
 
     /**
      * Prepare the orders array for the next database call
+     * 
      * @return void
      */
     protected function prepareOrdersForQuery()
@@ -316,7 +349,9 @@ class QueryBuilder extends Connect {
 
     /**
      * Limits the amount of results to be returned by the query
+     * 
      * @param int $limit
+     * 
      * @return \MinasORM\Builder\QueryBuilder
      */
     public function limit(Int $limit)
@@ -332,6 +367,7 @@ class QueryBuilder extends Connect {
      * Alias to set the "limit" value of the query
      *
      * @param int $limit
+     * 
      * @return \MinasORM\Builder\QueryBuilder|static
      */
     public function take(Int $limit)
@@ -341,16 +377,19 @@ class QueryBuilder extends Connect {
 
     /**
      * Execute PDO Query
+     * 
+     * @param string $type = 'where'
+     * 
      * @return object|bool|null 
      */
-    protected function executeQuery($type = 'where')
+    protected function executeQuery(String $type = 'where')
     {
         $this->prepareWhereForQuery();
 
         $query = Connect::getInstance()
             ->prepare($this->getFormatedQuery($type));
         
-        $this->bindValues($query, $type);
+        $this->bindValues($query);
 
         try {
             $query->execute();
@@ -363,8 +402,10 @@ class QueryBuilder extends Connect {
 
     /**
      * Return a first record or call the callback
+     * 
      * @param mixed $columns
      * @param \Closure|null $callback
+     * 
      * @return \MinasORM\Builder\QueryBuilder|mixed|static
      */
     public function firstOr($columns = ['*'], Closure $callback = null)
@@ -384,26 +425,21 @@ class QueryBuilder extends Connect {
 
     /**
      * Bind values to execute query
+     * 
      * @param object|null $preparedQuery
+     * 
      * @return void
      */
-    protected function bindValues($preparedQuery, $type = 'where')
+    protected function bindValues($preparedQuery)
     {
-        if($type === 'delete' && empty($this->deleteData)) {
-            return LogErrors::storeLog("The primary key value was not found to be deleted.");
-        }
-
-        if($type === 'where') {
-            foreach($this->wheres as $index => $where) {
-                $preparedQuery->bindParam($index + 1, $where[2], Helpers::getDataType($where[2]));
-            }
-        } elseif ($type === 'delete') {
-            $preparedQuery->bindParam(':primary', $this->deleteData);
+        foreach($this->wheres as $index => $where) {
+            $preparedQuery->bindParam($index + 1, $where[2], Helpers::getDataType($where[2]));
         }
     }
 
     /**
      * Returns the number of records consulted
+     * 
      * @return \MinasORM\Builder\QueryBuilder|bool|null
      */
     public function count()
@@ -413,7 +449,9 @@ class QueryBuilder extends Connect {
 
     /**
      * Return formated query as string.
+     * 
      * @param string $type
+     * 
      * @return string
      */
     public function getFormatedQuery(String $type = 'where')
@@ -428,15 +466,17 @@ class QueryBuilder extends Connect {
             $offset = $this->offset > 0 ? 'OFFSET ' . $this->offset : '';
 
             return "SELECT {$columns} FROM {$this->table} {$this->whereString} {$orders} {$limit} {$offset}";
-        } elseif($type === 'delete') {
-            return "DELETE FROM {$this->table} WHERE {$this->primary} = :primary";
+        } elseif ($type === 'delete') {
+            return "DELETE FROM {$this->table} {$this->whereString}";
         }
     }
 
     /**
      * Set tableName and primaryKey of called class
+     * 
      * @param string $table
      * @param string $primary
+     * 
      * @return \MinasORM\Builder\QueryBuilder
      */
     public function setData(String $table, String $primary, String $model)
@@ -448,7 +488,15 @@ class QueryBuilder extends Connect {
         return $this;
     }
 
-    public function setFillable(?Array $fillables)
+    /**
+     * Method responsible for telling which columns
+     * in the model table a value can be inserted
+     * 
+     * @param null|array $fillables
+     * 
+     * @return void
+     */
+    public function setFillables(?Array $fillables)
     {
         if(!$fillables) {
             return;
@@ -457,6 +505,14 @@ class QueryBuilder extends Connect {
         $this->fillables = $fillables;
     }
 
+    /**
+     * Method responsible for setting default
+     * values of the columns to be inserted.
+     * 
+     * @param null|array $attributes
+     * 
+     * @return void
+     */
     public function setAttributes(?Array $attributes)
     {
         if(!$attributes) {
@@ -468,8 +524,10 @@ class QueryBuilder extends Connect {
 
     /**
      * Return query results
+     * 
      * @param bool $returnInstance
      * @param bool $returnCount
+     * 
      * @return \PDO|void|array|boolean
      */
     protected function queryResults($returnInstance = false, $returnCount = false, $type = 'where')
@@ -483,17 +541,27 @@ class QueryBuilder extends Connect {
         }
 
         if($execQuery->rowCount() > 1) {
-            return $returnInstance ? $execQuery->fetchAll(PDO::FETCH_CLASS, $this->model)
-                   : $execQuery->fetchAll(PDO::FETCH_ASSOC);
+            $this->data = $returnInstance 
+                          ? $execQuery->fetchAll(PDO::FETCH_CLASS, $this->model) 
+                          : $execQuery->fetchAll(PDO::FETCH_ASSOC);
+
+            return $this->data;
         }
 
-        return $returnInstance ? $execQuery->fetchObject($this->model)
-               : $execQuery->fetch(PDO::FETCH_ASSOC);
+        if($returnInstance) {
+            $this->data = $returnInstance 
+                          ? $execQuery->fetchObject($this->model) 
+                          : $execQuery->fetch(PDO::FETCH_ASSOC);
+
+            return $this->data;
+        }
     }
 
     /**
      * Get the first requested record and return this instance
+     * 
      * @param null|string|array $columns
+     * 
      * @return \MinasORM\Builder\QueryBuilder|void|array|boolean
      */
     public function first($columns = null)
@@ -510,7 +578,9 @@ class QueryBuilder extends Connect {
 
     /**
      * Skips the table records according to the (offset * limit);
+     * 
      * @param int $skip
+     * 
      * @return \MinasORM\Builder\QueryBuilder
      */
     public function offset(Int $offset)
@@ -524,7 +594,9 @@ class QueryBuilder extends Connect {
 
     /**
      * Alias of the "offset" method;
+     * 
      * @param int $skip
+     * 
      * @return \MinasORM\Builder\QueryBuilder
      */
     public function skip(Int $skip)
@@ -535,7 +607,9 @@ class QueryBuilder extends Connect {
     /**
      * Get the first requested record, but when it doesn't find the record, 
      * it kills the process (with 404 error).
+     * 
      * @param null|string|array $columns
+     * 
      * @return \MinasORM\Builder\QueryBuilder|void|array|boolean
      */
     public function firstOrFail($columns = null)
@@ -555,7 +629,9 @@ class QueryBuilder extends Connect {
 
     /**
      * Get the first requested record and return in array(s)
+     * 
      * @param null|string|array $columns
+     * 
      * @return \MinasORM\Builder\QueryBuilder|void|array|boolean
      */
     public function get($columns = null)
@@ -568,6 +644,15 @@ class QueryBuilder extends Connect {
 
     }
     
+    /**
+     * This method is invoked when a method 
+     * called does not exist in the class
+     * 
+     * @param mixed $method
+     * @param mixed|array $arguments
+     * 
+     * @return Exception
+     */
     public function __call($method, $arguments)
     {
         throw new Exception(
@@ -576,6 +661,9 @@ class QueryBuilder extends Connect {
     }
 
     /**
+     * This method is invoked when a property 
+     * called does not exist in the class
+     * 
      * @param $property
      * @return string|null
      */
@@ -586,6 +674,13 @@ class QueryBuilder extends Connect {
             );
     }
 
+    /**
+     * Set order by as decrescent
+     * 
+     * @param null|string $column = null
+     * 
+     * @return \MinasORM\Builder\QueryBuilder
+     */
     public function latest(?String $column = null)
     {
         return $this->orderBy($column ?? $this->primary, 'DESC');
@@ -593,13 +688,65 @@ class QueryBuilder extends Connect {
 
     /**
      * Destroy a record in the table
-     * @param mixed $primaryValue
+     * 
+     * @param mixed $record = null
+     * 
      * @return bool|null
      */
-    public function destroy($primaryValue)
+    public function destroy($record = null)
     {
-        $this->deleteData = $primaryValue;
+        if(!$record && !$this->data) {
+            return LogErrors::storeLog("A primary key value was not found to be deleted.");
+        }
 
-        return !!$this->queryResults(false, true, 'delete');
+        if(!$record) {
+            $primary = $this->resolveData();
+        }
+
+        if(!$record && !$primary) {
+            return LogErrors::storeLog("A primary key value was not found to be deleted. [Step 2]");
+        }
+
+        $delete = $this->newQueryWithSetData()
+                ->where($this->primary, $record ? $record : $primary);
+
+        return !!$delete->queryResults(false, true, 'delete');
+    }
+
+    /**
+     * Resolve the model data until
+     * find the primary index value
+     * 
+     * @return string|int|null
+     */
+    protected function resolveData()
+    {
+        if (is_object($this->data) && isset($this->data->{$this->primary})) {
+            return $this->data->{$this->primary};
+        }
+
+        if (is_array($this->data) && isset($this->data[$this->primary])) {
+            return $this->data[$this->primary];
+        }
+
+        return null;
+    }
+
+    public function storeModel(Array $data)
+    {
+        if(!is_array($data)) {
+            return LogErrors::storeLog("The data for insertion needs to be passed in the form of an array.");
+        }
+
+        if(!$this->fillables) {
+            return LogErrors::storeLog("Insert the [fillable] property in the model class, citing the columns to be filled.");
+        }
+
+        $storeData = $this->resolveColumnsToStore($data);
+    }
+
+    public function resolveColumnsToStore(Array $data)
+    {
+        
     }
 }

@@ -78,8 +78,6 @@ class Database {
      */
     protected static function builder()
     {
-        //if(self::$builderInstance instanceof QueryBuilder) return self::$builderInstance;
-
         $builder = new QueryBuilder();
 
         self::setChildClass();
@@ -90,7 +88,7 @@ class Database {
             self::$model
         );
 
-        $builder->setFillable(
+        $builder->setFillables(
                 (new static)->getModelFillables()
             );
 
@@ -98,7 +96,7 @@ class Database {
                 (new static)->getModelAttributes()
             );
 
-        //self::$builderInstance = $builder;
+        self::$builderInstance = $builder;
 
         return $builder;
     }
@@ -186,5 +184,25 @@ class Database {
     {
         return self::builder()
             ->destroy($value);
+    }
+
+    /**
+     * This method is invoked when a method 
+     * called does not exist in the class
+     * 
+     * @param mixed $method
+     * @param mixed|array $arguments
+     * 
+     * @return \MinasORM\Builder\QueryBuilder|\Exception
+     */
+    public function __call($method, $arguments)
+    {
+        return self::$builderInstance->{$method}($arguments);
+    }
+
+    public static function create(Array $data)
+    {
+        return self::builder()
+            ->storeModel($data);
     }
 }
