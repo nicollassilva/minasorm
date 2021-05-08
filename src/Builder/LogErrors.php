@@ -24,9 +24,12 @@ class LogErrors {
 
         if($pdoError) {
             $staticClass->monolog->error($logMessage);
-            return;
+
+            return null;
         }
         
         $staticClass->monolog->warning($logMessage);
+
+        return null;
     }
 }

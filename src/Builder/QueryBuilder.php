@@ -54,6 +54,9 @@ class QueryBuilder extends Connect {
     /** @var array|object|null $data */
     protected $data = null;
 
+    /** @var array|null $data */
+    protected $inserts = null;
+
     /**
      * Make the first connection to the database. If the connection 
      * has already been made through some previous call, it just verify 
@@ -430,10 +433,19 @@ class QueryBuilder extends Connect {
      * 
      * @return void
      */
-    protected function bindValues($preparedQuery)
+    protected function bindValues($preparedQuery, $action = 'where')
     {
-        foreach($this->wheres as $index => $where) {
-            $preparedQuery->bindParam($index + 1, $where[2], Helpers::getDataType($where[2]));
+        if($action === 'where') {
+            foreach($this->wheres as $index => $where) {
+                $preparedQuery->bindParam($index + 1, $where[2], Helpers::getDataType($where[2]));
+            }
+        } elseif($action === 'insert') {
+            $i = 0;
+
+            foreach($this->inserts as $index => $insert) {
+                $preparedQuery->bindValue(":{$index}", $insert);
+                $i++;
+            }
         }
     }
 
@@ -532,7 +544,9 @@ class QueryBuilder extends Connect {
      */
     protected function queryResults($returnInstance = false, $returnCount = false, $type = 'where')
     {
-        $execQuery = $this->executeQuery($type);
+        $execQuery = $type === 'insert' 
+                        ? $this->executeStore() 
+                        : $this->executeQuery($type);
 
         if(!$execQuery) return;
 
@@ -732,7 +746,7 @@ class QueryBuilder extends Connect {
         return null;
     }
 
-    public function storeModel(Array $data)
+    public function prepareStore(Array $data)
     {
         if(!is_array($data)) {
             return LogErrors::storeLog("The data for insertion needs to be passed in the form of an array.");
@@ -742,11 +756,75 @@ class QueryBuilder extends Connect {
             return LogErrors::storeLog("Insert the [fillable] property in the model class, citing the columns to be filled.");
         }
 
-        $storeData = $this->resolveColumnsToStore($data);
+        $this->resolveColumnsToStore($data);
+        
+        if(!$this->inserts) {
+            return LogErrors::storeLog("There was an error preparing your data for insertion");
+        }
+
+        $inserted = $this->queryResults(false, true, 'insert');
+
+        if(!$inserted) {
+            return;
+        }
+
+        return $this->latest()->first();
     }
 
-    public function resolveColumnsToStore(Array $data)
+    protected function getInsertQuery()
     {
-        
+        $columns = [
+            1 => implode(', ', array_keys($this->inserts)),
+            array_keys($this->inserts),
+            count($this->inserts)
+        ];
+
+        $countColumns = count($columns[2]);
+        $bindedColumns = '';
+
+        for($i = 0; $i < $countColumns; $i++) {
+            $bindedColumns .= ":{$columns[2][$i]}, ";
+        }
+
+        $attachedColumns = '(' . Str::clearEnd(', ', $columns[1]) . ')';
+        $bindedColumns = '(' . Str::clearEnd(', ', $bindedColumns) . ')';
+
+        return "INSERT INTO {$this->table} {$attachedColumns} VALUES {$bindedColumns}";
+    }
+
+    protected function executeStore()
+    {
+        $store = Connect::getInstance()
+            ->prepare($this->getInsertQuery());
+
+        $this->bindValues($store, 'insert');
+
+        try {
+            $store->execute();
+        } catch(PDOException $exception) {
+            return LogErrors::storeLog($exception->getMessage(), true);
+        }
+
+        return $store;
+    }
+
+    protected function resolveColumnsToStore(Array $data)
+    {
+        foreach($data as $key => $value) {
+            if(!in_array($key, $this->fillables, true)) {
+                unset($data[$key]);
+            }
+        }
+
+        if(!$this->attributes) {
+            $this->inserts = $data;
+            return;
+        }
+
+        foreach($this->attributes as $key => $value) {
+            $data[$key] = $value;
+        }
+
+        $this->inserts = $data;
     }
 }

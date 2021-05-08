@@ -203,6 +203,6 @@ class Database {
     public static function create(Array $data)
     {
         return self::builder()
-            ->storeModel($data);
+            ->prepareStore($data);
     }
 }
