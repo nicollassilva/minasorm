@@ -25,9 +25,9 @@
     "require": {
         "php": "^7.2.5",
         "ext-pdo": "*",
-        "vlucas/phpdotenv": "5.3.x-dev",
-        "monolog/monolog": "2.x-dev",
-        "symfony/var-dumper": "^5.x-dev"
+        "vlucas/phpdotenv": "^5.3",
+        "monolog/monolog": "^2.2",
+        "symfony/var-dumper": "^5.3"
     },
     "autoload": {
         "files": [

@@ -379,7 +379,7 @@ class QueryBuilder extends Connect {
     }
 
     /**
-     * Execute PDO Query
+     * Execute PDO Query for where&delete clause
      * 
      * @param string $type = 'where'
      * 
@@ -746,6 +746,13 @@ class QueryBuilder extends Connect {
         return null;
     }
 
+    /**
+     * Prepare and execute insert clause
+     * 
+     * @param array $data
+     * 
+     * @return null|void|\MinasORM\Builder\QueryBuilder
+     */
     public function prepareStore(Array $data)
     {
         if(!is_array($data)) {
@@ -771,12 +778,16 @@ class QueryBuilder extends Connect {
         return $this->latest()->first();
     }
 
-    protected function getInsertQuery()
+    /**
+     * Resolve the query string for insert clause
+     * 
+     * @return array
+     */
+    public function getBindedQueryStrings()
     {
         $columns = [
             1 => implode(', ', array_keys($this->inserts)),
-            array_keys($this->inserts),
-            count($this->inserts)
+            array_keys($this->inserts)
         ];
 
         $countColumns = count($columns[2]);
@@ -786,16 +797,37 @@ class QueryBuilder extends Connect {
             $bindedColumns .= ":{$columns[2][$i]}, ";
         }
 
-        $attachedColumns = '(' . Str::clearEnd(', ', $columns[1]) . ')';
+        $clearedColumns = '(' . Str::clearEnd(', ', $columns[1]) . ')';
+
         $bindedColumns = '(' . Str::clearEnd(', ', $bindedColumns) . ')';
 
-        return "INSERT INTO {$this->table} {$attachedColumns} VALUES {$bindedColumns}";
+        return [
+            $clearedColumns,
+            $bindedColumns
+        ];
     }
 
+    /**
+     * Return the query string for insert clause
+     * 
+     * @return string
+     */
+    protected function getStoreQuery()
+    {
+        [$clearedColumns, $bindedColumns] = $this->getBindedQueryStrings();
+
+        return "INSERT INTO {$this->table} {$clearedColumns} VALUES {$bindedColumns}";
+    }
+
+    /**
+     * Execute PDO Query for insert clause
+     * 
+     * @return \PDO|null|\MinasORM\Builder\QueryBuilder
+     */
     protected function executeStore()
     {
         $store = Connect::getInstance()
-            ->prepare($this->getInsertQuery());
+            ->prepare($this->getStoreQuery());
 
         $this->bindValues($store, 'insert');
 
@@ -808,6 +840,14 @@ class QueryBuilder extends Connect {
         return $store;
     }
 
+    /**
+     * It resolves the columns that must be inserted in the database
+     * and removes those that are not in the fillable property
+     * 
+     * @param array $data
+     * 
+     * @return void
+     */
     protected function resolveColumnsToStore(Array $data)
     {
         foreach($data as $key => $value) {
