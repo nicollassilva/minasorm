@@ -21,7 +21,7 @@
             "email": "lyod.hp@gmail.com"
         }
     ],
-    "minimum-stability": "0.13",
+    "minimum-stability": "stable",
     "require": {
         "php": "^7.2.5",
         "ext-pdo": "*",
