@@ -1,6 +1,4 @@
-tooling.php
 .env
 vendor/
 index.php
 App/
-getTooling.php

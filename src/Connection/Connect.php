@@ -2,6 +2,7 @@
 
 namespace MinasORM\Connection;
 
+use Exception;
 use PDO;
 
 /**
@@ -65,7 +66,10 @@ abstract class Connect {
      */
     public static function loadEnvVariables()
     {
-        $dotenv = \Dotenv\Dotenv::createImmutable(dirname(__DIR__, 2));
+        $dotenv = \Dotenv\Dotenv::createImmutable(
+                self::getRootDirectory()
+            );
+
         $dotenv->load();
 
         self::setConfigSystem();
@@ -77,6 +81,8 @@ abstract class Connect {
      */
     public static function setConfigSystem()
     {
+        $completeDirectoryLog = self::getLogDirectory();
+
         self::$systemConfig = [
             'driver' => $_ENV['DB_CONNECTION'],
             'hostname' => $_ENV['DB_HOST'],
@@ -86,9 +92,13 @@ abstract class Connect {
             'username' => $_ENV['DB_USERNAME'],
             'password' => $_ENV['DB_PASSWORD'],
             'timezone' => $_ENV['DB_TIMEZONE'],
-            'pathLog' => self::getRootDirectory() . self::$ds . $_ENV['PATH_LOG'] . self::$ds . 'Logs.log',
+            'pathLog' => "{$completeDirectoryLog}Logs.log",
             'options' => self::$options
         ];
+
+        self::createLogFile(
+            $completeDirectoryLog
+        );
 
         return;
     }
@@ -113,9 +123,26 @@ abstract class Connect {
                     self::$systemConfig['options']
                 );
             } catch(PDOException $e) {
-                return false;
+                throw new Exception("Could not connect to the database: [{$e->getMessage()}]");
             }
         }
+    }
+
+    /**
+     * Get log root directory
+     * @return string
+     */
+    public static function getLogDirectory()
+    {
+        $rootDirectory = self::getRootDirectory();
+        
+        $dirSeparator = self::$ds;
+        
+        $pathLog = rtrim($_ENV['PATH_LOG'], '\\/');
+
+        $completeLogDirectory = "{$rootDirectory}{$dirSeparator}{$pathLog}{$dirSeparator}";
+
+        return $completeLogDirectory;
     }
 
     /**
@@ -124,22 +151,22 @@ abstract class Connect {
      */
     public static function getRootDirectory()
     {
-        $rootDirectory = dirname(__DIR__, 2);
-        $completeLogDirectory = $rootDirectory . self::$ds . $_ENV['PATH_LOG'] . self::$ds;
-
-        if(!file_exists($completeLogDirectory . 'Logs.log')) {
-            try {
-                fopen($completeLogDirectory . 'Logs.log', 'a');
-            } catch(Exception $e) {
-                return false;
-            }
-        }
-
-        return $rootDirectory;
+        return dirname(__DIR__, 2);
     }
 
     public static function getInstance()
     {
         return self::$connection;
+    }
+
+    public static function createLogFile($dir)
+    {
+        if(!file_exists("{$dir}Logs.log")) {
+            try {
+                fopen("{$dir}Logs.log", 'a');
+            } catch(Exception $exception) {
+                throw new Exception("It was not possible to create a log file in the listed directory: [{$dir}]");
+            }
+        }
     }
 }

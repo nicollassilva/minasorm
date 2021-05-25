@@ -54,8 +54,14 @@ class QueryBuilder extends Connect {
     /** @var array|object|null $data */
     protected $data = null;
 
+    /** @var array|object|null $data */
+    protected $originalData = null;
+
     /** @var array|null $data */
     protected $inserts = null;
+
+    /** @var array|null $data */
+    protected $updating = null;
 
     /**
      * Make the first connection to the database. If the connection 
@@ -323,7 +329,7 @@ class QueryBuilder extends Connect {
     /**
      * Prepare the orders array for the next database call
      * 
-     * @return void
+     * @return string
      */
     protected function prepareOrdersForQuery()
     {
@@ -377,30 +383,52 @@ class QueryBuilder extends Connect {
     {
         return $this->limit($limit);
     }
-
+    
     /**
-     * Execute PDO Query for where&delete clause
+     * Execute PDO Query for insert clause
      * 
-     * @param string $type = 'where'
+     * @param string $clause = 'where'
      * 
-     * @return object|bool|null 
+     * @return \PDO|null|\MinasORM\Builder\QueryBuilder
      */
-    protected function executeQuery(String $type = 'where')
+    protected function executeClause(String $clause = 'where')
     {
-        $this->prepareWhereForQuery();
+        if($clause == 'where' || $clause == 'delete') {
+            $this->prepareWhereForQuery();
+            
+            $query = $this->getFormatedQuery($clause);
+        }
 
-        $query = Connect::getInstance()
-            ->prepare($this->getFormatedQuery($type));
-        
-        $this->bindValues($query);
+        if($clause == 'insert') {
+            $query = $this->getStoreQuery();
+        }
+
+        if($clause == 'update') {
+            $query = $this->getUpdateQuery();
+        }
+
+        if(!isset($query)) {
+            return LogErrors::storeLog("Type of action not found, the query was not found. [{$clause}]");
+        }
 
         try {
-            $query->execute();
+            $stmt = Connect::getInstance()
+                ->prepare($query);
+        } catch (Exception $e) {
+            return LogErrors::storeLog(sprintf(
+                    "Error: %s, PDO CODE: %s", $e->getMessage(), $e->getCode()
+                ), true);
+        }
+
+        $this->bindValues($stmt, $clause);
+
+        try {
+            $stmt->execute();
         } catch(PDOException $exception) {
             return LogErrors::storeLog($exception->getMessage(), true);
         }
 
-        return $query;
+        return $stmt;
     }
 
     /**
@@ -435,16 +463,17 @@ class QueryBuilder extends Connect {
      */
     protected function bindValues($preparedQuery, $action = 'where')
     {
-        if($action === 'where') {
+        if($action == 'where' || $action == 'delete') {
             foreach($this->wheres as $index => $where) {
                 $preparedQuery->bindParam($index + 1, $where[2], Helpers::getDataType($where[2]));
             }
         } elseif($action === 'insert') {
-            $i = 0;
-
             foreach($this->inserts as $index => $insert) {
                 $preparedQuery->bindValue(":{$index}", $insert);
-                $i++;
+            }
+        } elseif($action === 'update') {
+            foreach($this->updating as $index => $updating) {
+                $preparedQuery->bindValue(":{$index}", $updating);
             }
         }
     }
@@ -473,9 +502,9 @@ class QueryBuilder extends Connect {
     
             $limit = $this->limit > 0 ? 'LIMIT ' . $this->limit : '';
     
-            $orders = $this->prepareOrdersForQuery();
-    
             $offset = $this->offset > 0 ? 'OFFSET ' . $this->offset : '';
+
+            $orders = $this->prepareOrdersForQuery();
 
             return "SELECT {$columns} FROM {$this->table} {$this->whereString} {$orders} {$limit} {$offset}";
         } elseif ($type === 'delete') {
@@ -544,9 +573,7 @@ class QueryBuilder extends Connect {
      */
     protected function queryResults($returnInstance = false, $returnCount = false, $type = 'where')
     {
-        $execQuery = $type === 'insert' 
-                        ? $this->executeStore() 
-                        : $this->executeQuery($type);
+        $execQuery = $this->executeClause($type);
 
         if(!$execQuery) return;
 
@@ -559,6 +586,8 @@ class QueryBuilder extends Connect {
                           ? $execQuery->fetchAll(PDO::FETCH_CLASS, $this->model) 
                           : $execQuery->fetchAll(PDO::FETCH_ASSOC);
 
+            $this->setOriginalData();
+
             return $this->data;
         }
 
@@ -567,8 +596,20 @@ class QueryBuilder extends Connect {
                           ? $execQuery->fetchObject($this->model) 
                           : $execQuery->fetch(PDO::FETCH_ASSOC);
 
+            $this->setOriginalData();
+
             return $this->data;
         }
+    }
+
+    /**
+     * Clone the query result
+     * 
+     * @return void
+     */
+    public function setOriginalData()
+    {
+        $this->originalData = clone $this->data;
     }
 
     /**
@@ -763,7 +804,7 @@ class QueryBuilder extends Connect {
             return LogErrors::storeLog("Insert the [fillable] property in the model class, citing the columns to be filled.");
         }
 
-        $this->resolveColumnsToStore($data);
+        $this->resolveColumnsToAttach($data);
         
         if(!$this->inserts) {
             return LogErrors::storeLog("There was an error preparing your data for insertion");
@@ -771,9 +812,7 @@ class QueryBuilder extends Connect {
 
         $inserted = $this->queryResults(false, true, 'insert');
 
-        if(!$inserted) {
-            return;
-        }
+        if(!$inserted) return;
 
         return $this->latest()->first();
     }
@@ -783,7 +822,7 @@ class QueryBuilder extends Connect {
      * 
      * @return array
      */
-    public function getBindedQueryStrings()
+    public function getBindedQueryInsert()
     {
         $columns = [
             1 => implode(', ', array_keys($this->inserts)),
@@ -814,30 +853,9 @@ class QueryBuilder extends Connect {
      */
     protected function getStoreQuery()
     {
-        [$clearedColumns, $bindedColumns] = $this->getBindedQueryStrings();
+        [$clearedColumns, $bindedColumns] = $this->getInsertBindedQuery();
 
         return "INSERT INTO {$this->table} {$clearedColumns} VALUES {$bindedColumns}";
-    }
-
-    /**
-     * Execute PDO Query for insert clause
-     * 
-     * @return \PDO|null|\MinasORM\Builder\QueryBuilder
-     */
-    protected function executeStore()
-    {
-        $store = Connect::getInstance()
-            ->prepare($this->getStoreQuery());
-
-        $this->bindValues($store, 'insert');
-
-        try {
-            $store->execute();
-        } catch(PDOException $exception) {
-            return LogErrors::storeLog($exception->getMessage(), true);
-        }
-
-        return $store;
     }
 
     /**
@@ -848,7 +866,7 @@ class QueryBuilder extends Connect {
      * 
      * @return void
      */
-    protected function resolveColumnsToStore(Array $data)
+    protected function resolveColumnsToAttach(Array $data)
     {
         foreach($data as $key => $value) {
             if(!in_array($key, $this->fillables, true)) {
@@ -866,5 +884,79 @@ class QueryBuilder extends Connect {
         }
 
         $this->inserts = $data;
+    }
+
+    public function save()
+    {
+        if(!$this->data || !$this->data->{$this->primary}) {
+            return LogErrors::storeLog("There is no associated model for update or the primary index was not found in the data.");
+        }
+
+        $this->prepareUpdate();
+
+        if(empty($this->updating)) return;
+
+        echo 'Fiz a alteração';
+
+        $updating = $this->queryResults(false, true, 'update');
+
+        return $updating;
+        
+    }
+
+    /**
+     * Return query update
+     * 
+     * @return string
+     */
+    public function getUpdateQuery()
+    {
+        if(empty($this->updating)) return;
+
+        $query = $this->getBindedQueryUpdate();
+
+        $primary = $this->originalData->{$this->primary};
+
+        return "UPDATE {$this->table} SET {$query} WHERE {$this->primary} = {$primary}";
+    }
+
+    /**
+     * Get the part of query update "SET" already
+     * 
+     * @return string
+     */
+    public function getBindedQueryUpdate()
+    {
+        $columns = array_keys($this->updating);
+        $bindedColumns = '';
+
+        $countColumns = count($columns);
+
+        for($i = 0; $i < $countColumns; $i++) {
+            if($columns[$i] === $this->primary) continue;
+
+            $bindedColumns .= "{$columns[$i]} = :{$columns[$i]}, ";
+        }
+
+        $bindedColumns = Str::clearEnd(', ', $bindedColumns);
+
+        return $bindedColumns;
+    }
+
+    /**
+     * Prepare updates data from query
+     * 
+     * @return void
+     */
+    public function prepareUpdate()
+    {
+        $dataToArray = Arr::toArray($this->data);
+        $originalDataToArray = Arr::toArray($this->originalData);
+
+        $dataChanged = array_diff_assoc($dataToArray, $originalDataToArray);
+
+        if(empty($dataChanged)) return;
+
+        $this->updating = $dataChanged;
     }
 }

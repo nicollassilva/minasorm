@@ -15,4 +15,9 @@ class Arrays {
 
         return array_filter($array, $clearArray);
     }
+
+    public static function toArray(Object $object)
+    {
+        return json_decode(json_encode($object), true);
+    }
 }
