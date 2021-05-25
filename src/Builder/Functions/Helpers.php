@@ -13,7 +13,9 @@ class Helpers {
     ];
     /**
      * Returns the data type parameter accepted by the PDO Connection
+     * 
      * @param mixed $data
+     * 
      * @return string
      */
     public static function getDataType($data)

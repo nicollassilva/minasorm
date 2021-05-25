@@ -26,16 +26,14 @@
         "php": "^7.2.5",
         "ext-pdo": "*",
         "vlucas/phpdotenv": "^5.3",
-        "monolog/monolog": "^2.2",
+        "monolog/monolog": "^2.2"
+    },
+    "require-dev": {
         "symfony/var-dumper": "^5.2"
     },
     "autoload": {
-        "files": [
-            "src/Builder/Functions/Assistant.php"
-        ],
     	"psr-4": {
-    		"MinasORM\\": "src/",
-            "App\\": "App/"
+    		"MinasORM\\": "src/"
     	}
     }
 }

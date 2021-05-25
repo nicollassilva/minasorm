@@ -151,7 +151,7 @@ abstract class Connect {
      */
     public static function getRootDirectory()
     {
-        return dirname(__DIR__, 5);
+        return dirname(__DIR__, 2);
     }
 
     public static function getInstance()
