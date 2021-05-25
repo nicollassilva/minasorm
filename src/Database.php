@@ -134,7 +134,7 @@ class Database {
      */
     public static function table(String $name, String $primaryKey = 'id')
     {
-        return (new QueryBuilder)
+        return self::builder()
             ->setData($name, $primaryKey, static::class);
     }
 

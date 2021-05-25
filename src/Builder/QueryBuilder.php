@@ -591,15 +591,13 @@ class QueryBuilder extends Connect {
             return $this->data;
         }
 
-        if($returnInstance) {
-            $this->data = $returnInstance 
-                          ? $execQuery->fetchObject($this->model) 
-                          : $execQuery->fetch(PDO::FETCH_ASSOC);
+        $this->data = $returnInstance 
+                        ? $execQuery->fetchObject($this->model) 
+                        : $execQuery->fetch(PDO::FETCH_ASSOC);
 
-            $this->setOriginalData();
+        $this->setOriginalData();
 
-            return $this->data;
-        }
+        return $this->data;
     }
 
     /**
@@ -609,6 +607,8 @@ class QueryBuilder extends Connect {
      */
     public function setOriginalData()
     {
+        if(!is_object($this->data)) return;
+        
         $this->originalData = clone $this->data;
     }
 
@@ -886,6 +886,11 @@ class QueryBuilder extends Connect {
         $this->inserts = $data;
     }
 
+    /**
+     * Save a model with new settings
+     * 
+     * @return int|null|void
+     */
     public function save()
     {
         if(!$this->data || !$this->data->{$this->primary}) {
@@ -895,8 +900,6 @@ class QueryBuilder extends Connect {
         $this->prepareUpdate();
 
         if(empty($this->updating)) return;
-
-        echo 'Fiz a alteração';
 
         $updating = $this->queryResults(false, true, 'update');
 
@@ -958,5 +961,24 @@ class QueryBuilder extends Connect {
         if(empty($dataChanged)) return;
 
         $this->updating = $dataChanged;
+    }
+
+    public function original($originalData)
+    {
+        if(is_array($originalData)) {
+            $originalData = $originalData[0];
+        }
+
+        if(empty($this->originalData)) return;
+
+        if(is_object($this->originalData) && isset($this->originalData->{$originalData})) {
+            return $this->originalData->{$originalData};
+        }
+
+        if(is_array($this->originalData) && isset($this->originalData[$originalData])) {
+            return $this->originalData[$originalData];
+        }
+
+        return null;
     }
 }
