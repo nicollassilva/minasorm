@@ -180,7 +180,7 @@ class QueryBuilder extends Connect {
     /**
      * Execute the closure function to add array of wheres
      * 
-     * @param closure $closure
+     * @param Closure $closure
      * 
      * @return \MinasORM\Builder\QueryBuilder
      */
@@ -696,7 +696,6 @@ class QueryBuilder extends Connect {
         }
 
         return $this->queryResults();
-
     }
     
     /**
