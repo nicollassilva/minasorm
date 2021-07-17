@@ -852,7 +852,7 @@ class QueryBuilder extends Connect {
      */
     protected function getStoreQuery()
     {
-        [$clearedColumns, $bindedColumns] = $this->getInsertBindedQuery();
+        [$clearedColumns, $bindedColumns] = $this->getBindedQueryInsert();
 
         return "INSERT INTO {$this->table} {$clearedColumns} VALUES {$bindedColumns}";
     }
