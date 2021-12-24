@@ -23,7 +23,7 @@
     ],
     "minimum-stability": "stable",
     "require": {
-        "php": "^7.2.5",
+        "php": "^7.3|^8.0",
         "ext-pdo": "*",
         "vlucas/phpdotenv": "^5.3",
         "monolog/monolog": "^2.2"
